@@ -19,8 +19,7 @@ if 'uploaded_file_name' not in st.session_state:
 
 # Sidebar for authentication and settings
 with st.sidebar:
-    st.image("https://via.placeholder.com/200x80/FF6B35/FFFFFF?text=CA+Drywall", use_container_width=True)
-    st.title("Contract Analyzer")
+    st.title("📋 Contract Analyzer")
     
     # Simple authentication (replace with proper auth later)
     user_role = st.selectbox(
@@ -38,7 +37,7 @@ with st.sidebar:
     )
     
     st.divider()
-    st.caption("Version 1.0.0")
+    st.caption("Version 1.0.1")
     st.caption("© 2025 California Drywall")
 
 # Main header
@@ -75,24 +74,24 @@ Focus on common construction contract red flags:
 - Problematic dispute resolution terms
 
 Format your response as a JSON object with this structure:
-{
-  "summary": {
+{{
+  "summary": {{
     "total_issues": <number>,
     "critical": <number>,
     "warning": <number>,
     "informational": <number>
-  },
+  }},
   "findings": [
-    {
+    {{
       "category": "<category>",
       "severity": "<critical|warning|informational>",
       "issue": "<brief title>",
       "details": "<detailed explanation>",
       "location": "<Article X, Section Y>",
       "recommendation": "<action to take>"
-    }
+    }}
   ]
-}
+}}
 
 CONTRACT TEXT:
 {contract_text}
@@ -101,7 +100,11 @@ CONTRACT TEXT:
 def analyze_contract_with_claude(contract_text, api_key):
     """Analyze contract using Claude API"""
     try:
-        client = anthropic.Anthropic(api_key=api_key)
+        # Set API key as environment variable to avoid proxies parameter
+        os.environ['ANTHROPIC_API_KEY'] = api_key
+        
+        # Initialize client without passing api_key directly
+        client = anthropic.Anthropic()
         
         message = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -131,6 +134,7 @@ def analyze_contract_with_claude(contract_text, api_key):
     
     except Exception as e:
         st.error(f"Error analyzing contract: {str(e)}")
+        st.error(f"Full error details: {repr(e)}")
         return None
 
 def display_severity_badge(severity):
@@ -151,6 +155,8 @@ uploaded_file = st.file_uploader(
     help="Supported formats: PDF, Word (.docx, .doc), or plain text"
 )
 
+contract_text = None
+
 if uploaded_file:
     st.session_state.uploaded_file_name = uploaded_file.name
     
@@ -167,10 +173,10 @@ if uploaded_file:
         if uploaded_file.type == "text/plain":
             contract_text = uploaded_file.read().decode('utf-8')
         elif uploaded_file.type == "application/pdf":
-            st.warning("📄 PDF parsing requires additional libraries. For demo, please use .txt file or paste text below.")
+            st.warning("📄 PDF parsing requires additional libraries. For now, please use .txt file or paste text below.")
             contract_text = None
         elif "word" in uploaded_file.type or uploaded_file.name.endswith(('.doc', '.docx')):
-            st.warning("📝 Word document parsing requires additional libraries. For demo, please use .txt file or paste text below.")
+            st.warning("📝 Word document parsing requires additional libraries. For now, please use .txt file or paste text below.")
             contract_text = None
         else:
             contract_text = uploaded_file.read().decode('utf-8')
@@ -197,23 +203,23 @@ with col2:
         "🔍 Analyze Contract",
         type="primary",
         use_container_width=True,
-        disabled=not api_key or (not uploaded_file and not manual_text)
+        disabled=not api_key or not contract_text
     )
 
 if not api_key:
     st.info("👈 Please enter your Anthropic API key in the sidebar to begin analysis")
 
+if not contract_text and not uploaded_file:
+    st.info("📄 Please upload a contract file or paste contract text above")
+
 # Perform analysis
-if analyze_button and api_key:
-    if 'contract_text' in locals() and contract_text:
-        with st.spinner("🤖 AI analyzing contract... This may take 30-60 seconds..."):
-            results = analyze_contract_with_claude(contract_text, api_key)
-            
-            if results:
-                st.session_state.analysis_results = results
-                st.session_state.analysis_date = datetime.now()
-    else:
-        st.error("Please upload a valid contract file or paste contract text")
+if analyze_button and api_key and contract_text:
+    with st.spinner("🤖 AI analyzing contract... This may take 30-60 seconds..."):
+        results = analyze_contract_with_claude(contract_text, api_key)
+        
+        if results:
+            st.session_state.analysis_results = results
+            st.session_state.analysis_date = datetime.now()
 
 # Display results
 if st.session_state.analysis_results:
