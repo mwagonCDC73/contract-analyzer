@@ -1,8 +1,7 @@
 import streamlit as st
-import anthropic
-import os
-from datetime import datetime
+import requests
 import json
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
@@ -37,7 +36,7 @@ with st.sidebar:
     )
     
     st.divider()
-    st.caption("Version 1.0.1")
+    st.caption("Version 1.0.2")
     st.caption("© 2025 California Drywall")
 
 # Main header
@@ -98,27 +97,39 @@ CONTRACT TEXT:
 """
 
 def analyze_contract_with_claude(contract_text, api_key):
-    """Analyze contract using Claude API"""
+    """Analyze contract using Claude API via direct HTTP request"""
     try:
-        # Set API key as environment variable to avoid proxies parameter
-        os.environ['ANTHROPIC_API_KEY'] = api_key
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
+        }
         
-        # Initialize client without passing api_key directly
-        client = anthropic.Anthropic()
-        
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=8000,
-            messages=[
+        data = {
+            "model": "claude-sonnet-4-20250514",
+            "max_tokens": 8000,
+            "messages": [
                 {
                     "role": "user",
                     "content": CONTRACT_ANALYSIS_PROMPT.format(contract_text=contract_text)
                 }
             ]
+        }
+        
+        response = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers=headers,
+            json=data,
+            timeout=120
         )
         
-        # Extract JSON from response
-        response_text = message.content[0].text
+        if response.status_code != 200:
+            st.error(f"API Error: {response.status_code}")
+            st.error(f"Response: {response.text}")
+            return None
+        
+        result = response.json()
+        response_text = result['content'][0]['text']
         
         # Find JSON in response (Claude might wrap it in markdown)
         if "```json" in response_text:
@@ -134,7 +145,8 @@ def analyze_contract_with_claude(contract_text, api_key):
     
     except Exception as e:
         st.error(f"Error analyzing contract: {str(e)}")
-        st.error(f"Full error details: {repr(e)}")
+        import traceback
+        st.error(f"Traceback: {traceback.format_exc()}")
         return None
 
 def display_severity_badge(severity):
