@@ -1,0 +1,130 @@
+{
+  "summary": {
+    "warning": 6,
+    "critical": 7,
+    "total_issues": 15,
+    "informational": 2
+  },
+  "findings": [
+    {
+      "issue": "Contract text is corrupted/unreadable",
+      "details": "The entire contract document appears to be corrupted with special characters and symbols making it impossible to analyze payment terms, retainage provisions, or any other contractual obligations. This presents an unacceptable business risk as California Drywall cannot understand what they would be agreeing to.",
+      "category": "Payment & Cash Flow",
+      "location": "Entire document",
+      "severity": "critical",
+      "recommendation": "DO NOT SIGN. Request a clean, readable version of the contract in standard text format before any analysis or execution can proceed."
+    },
+    {
+      "issue": "Unable to verify California Civil Code compliance",
+      "details": "Due to document corruption, cannot verify compliance with California Civil Code \u00a78800 (prompt payment), \u00a72782 (indemnity limitations), or other California-specific requirements critical for drywall subcontractors.",
+      "category": "Legal Compliance",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Obtain readable contract and ensure it includes proper California prompt payment provisions, mechanics lien rights preservation, and compliant indemnity language."
+    },
+    {
+      "issue": "Scope of work undefined",
+      "details": "Cannot determine what wall and ceiling systems, fire-rated assemblies, or coordination responsibilities California Drywall would be obligated to provide. This creates unlimited liability exposure.",
+      "category": "Scope & Performance",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Demand clear scope definition including specific wall/ceiling systems, coordination requirements, and division of work between trades."
+    },
+    {
+      "issue": "Insurance requirements unknown",
+      "details": "Cannot assess insurance requirements, indemnification scope, or risk allocation provisions. May contain broad indemnity clauses prohibited under California law or unreasonable insurance limits.",
+      "category": "Insurance & Risk",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Verify insurance requirements are reasonable for subcontractor scope and that indemnity provisions comply with California Civil Code \u00a72782."
+    },
+    {
+      "issue": "Change order procedures undefined",
+      "details": "Unable to determine change order approval process, markup limitations, or time extension provisions. This could result in unpaid extra work or unrealistic schedule demands.",
+      "category": "Change Orders",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Ensure contract includes fair change order procedures with reasonable markups and time extension provisions for additional work."
+    },
+    {
+      "issue": "Schedule and liquidated damages unknown",
+      "details": "Cannot assess project timeline reasonableness, liquidated damages provisions, or 'no damage for delay' clauses that could expose California Drywall to significant financial risk.",
+      "category": "Schedule & Performance",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Review schedule for feasibility and ensure liquidated damages are capped and reasonable. Negotiate out 'no damage for delay' clauses."
+    },
+    {
+      "issue": "Dispute resolution process unknown",
+      "details": "Cannot determine whether disputes go to arbitration or litigation, venue requirements, or attorney's fee provisions. This could result in expensive out-of-state dispute resolution.",
+      "category": "Dispute Resolution",
+      "location": "Unknown - document unreadable",
+      "severity": "critical",
+      "recommendation": "Ensure dispute resolution occurs in California with reasonable procedures and mutual attorney's fee provisions."
+    },
+    {
+      "issue": "Payment timing uncertain",
+      "details": "Due to document corruption, cannot verify if payment terms are Net-30, Net-60, or contain problematic 'pay-if-paid' clauses that could delay payment indefinitely.",
+      "category": "Payment & Cash Flow",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "When readable version obtained, ensure payment terms are reasonable (Net-30 maximum) with 'pay-when-paid' rather than 'pay-if-paid' language."
+    },
+    {
+      "issue": "Retainage provisions unknown",
+      "details": "Cannot determine retainage percentage or release timing, which directly impacts cash flow for California Drywall's operations.",
+      "category": "Payment & Cash Flow",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "Negotiate retainage not to exceed 5% with clear release upon substantial completion of drywall scope."
+    },
+    {
+      "issue": "Stop notice and lien rights unclear",
+      "details": "Cannot verify preservation of California mechanics lien rights and stop notice procedures critical for payment protection on construction projects.",
+      "category": "California-Specific",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "Ensure contract preserves all California lien and stop notice rights and includes required statutory language."
+    },
+    {
+      "issue": "BIM/VDC requirements unknown",
+      "details": "Modern drywall projects often require 3D modeling and coordination. Cannot assess technology requirements or associated costs.",
+      "category": "Scope & Coordination",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "Clarify any BIM/VDC requirements and ensure additional compensation for modeling work if required."
+    },
+    {
+      "issue": "Prevailing wage compliance unclear",
+      "details": "If this is a public works project, prevailing wage requirements must be clearly defined and rates properly established.",
+      "category": "California-Specific",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "If public works, verify prevailing wage compliance procedures and rate determinations are included."
+    },
+    {
+      "issue": "Waiver of subrogation unknown",
+      "details": "Waiver of subrogation clauses can affect insurance coverage and should be reviewed with California Drywall's insurance carrier.",
+      "category": "Insurance & Risk",
+      "location": "Unknown - document unreadable",
+      "severity": "warning",
+      "recommendation": "Review any waiver of subrogation requirements with insurance carrier before agreement."
+    },
+    {
+      "issue": "Document format issues",
+      "details": "Contract appears to be corrupted during transmission or conversion. This suggests potential issues with document management systems or communication protocols.",
+      "category": "Document Quality",
+      "location": "Entire document",
+      "severity": "informational",
+      "recommendation": "Establish clear document exchange protocols and request all future contract documents in standard PDF or Word format."
+    },
+    {
+      "issue": "Legal review recommended",
+      "details": "Once a readable version is obtained, recommend full legal review given the complexity of construction contracts and California-specific requirements.",
+      "category": "Best Practices",
+      "location": "Overall contract",
+      "severity": "informational",
+      "recommendation": "Engage construction attorney familiar with California subcontractor law for full contract review before execution."
+    }
+  ]
+}

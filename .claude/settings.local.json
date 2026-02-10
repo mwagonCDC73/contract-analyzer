@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "WebFetch(domain:www.caldrywall.com)",
+      "WebSearch",
+      "WebFetch(domain:www.wconline.com)",
+      "Bash(ls:*)",
+      "Bash(pip install:*)",
+      "Bash(.venvScriptspip install pdfplumber)",
+      "Bash(npx create-next-app@latest web --typescript --tailwind --app --src-dir=false --import-alias=\"@/*\" --no-git)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(tasklist:*)",
+      "Bash(echo $ANTHROPIC_API_KEY)",
+      "Bash(powershell.exe -Command \"Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue; Write-Host ''Environment variable removed''\")",
+      "Bash(taskkill:*)",
+      "Bash(ping:*)",
+      "Bash(git checkout:*)",
+      "Bash(.ts \")",
+      "Bash(npx tsc:*)",
+      "Bash(test:*)",
+      "Bash(npm run build:*)",
+      "Bash(where:*)",
+      "Bash(netstat:*)",
+      "Bash(cmd /c \"taskkill /F /PID 4408 & taskkill /F /PID 20396\")",
+      "Bash(grep:*)",
+      "Bash(wmic process:*)",
+      "Bash(powershell:*)"
+    ]
+  }
+}
