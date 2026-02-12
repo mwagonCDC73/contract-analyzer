@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Header from '@/components/Header';
 import AnalysisResults from '@/components/AnalysisResults';
-import { getCurrentUser, getSession } from '@/lib/supabase';
+import { getCurrentUser, getValidAccessToken } from '@/lib/supabase';
 import { projectsAPI, contractsAPI, analysisAPI, authAPI } from '@/lib/api';
 import { getStatusConfig } from '@/lib/statusUtils';
 import StateBadge from '@/components/StateBadge';
@@ -148,14 +148,14 @@ export default function ProjectReviewDetailPage() {
   };
 
   const openPdfModal = useCallback(async (contractId: string, fileName: string) => {
-    const session = await getSession();
-    if (!session?.access_token) {
+    const token = await getValidAccessToken();
+    if (!token) {
       setError('Session expired. Please log in again.');
       setTimeout(() => setError(''), 3000);
       return;
     }
     const baseUrl = contractsAPI.getPdfUrl(contractId);
-    const pdfUrl = `${baseUrl}?token=${encodeURIComponent(session.access_token)}`;
+    const pdfUrl = `${baseUrl}?token=${encodeURIComponent(token)}`;
     setPdfModal({ fileName, contractId, pdfUrl });
   }, []);
 

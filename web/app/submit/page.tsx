@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { getCurrentUser } from '@/lib/supabase';
@@ -10,6 +10,18 @@ import type { Project, Contract, RedFlag } from '@/types';
 type SubmissionStep = 'form' | 'uploading' | 'analyzing' | 'complete' | 'error';
 
 export default function SubmitPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    }>
+      <SubmitPageContent />
+    </Suspense>
+  );
+}
+
+function SubmitPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);

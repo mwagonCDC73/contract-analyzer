@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getSession } from './supabase';
+import { getValidAccessToken, supabase } from './supabase';
 import type {
   LoginRequest,
   LoginResponse,
@@ -26,19 +26,16 @@ const apiClient = axios.create({
   },
 });
 
-// Add auth token to requests
+// Add auth token to requests — uses getValidAccessToken() which
+// checks expiration and refreshes automatically before sending.
 apiClient.interceptors.request.use(async (config) => {
   console.log('[API] Request:', config.method?.toUpperCase(), config.url);
-  if (config.data) {
-    console.log('[API] Request data:', config.data);
-  }
 
-  const session = await getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
-    console.log('[API] Auth token added to request');
+  const token = await getValidAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   } else {
-    console.warn('[API] No session token found!');
+    console.warn('[API] No valid session token available');
   }
 
   return config;
@@ -47,18 +44,37 @@ apiClient.interceptors.request.use(async (config) => {
   return Promise.reject(error);
 });
 
-// Log all responses
+// Response interceptor: retry once on 401 after refreshing the session.
+// This handles the race condition where a token expires between the
+// request interceptor's check and the backend receiving it.
 apiClient.interceptors.response.use(
   (response) => {
     console.log('[API] Response:', response.status, response.config.url);
-    console.log('[API] Response data:', response.data);
     return response;
   },
-  (error) => {
-    console.error('[API] Response error:', error.message);
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      console.warn('[API] Got 401, attempting session refresh and retry...');
+
+      try {
+        const { data: { session }, error: refreshError } =
+          await supabase.auth.refreshSession();
+        if (!refreshError && session?.access_token) {
+          console.log('[API] Session refreshed, retrying request');
+          // The request interceptor will pick up the fresh token
+          return apiClient(originalRequest);
+        }
+      } catch (refreshErr) {
+        console.error('[API] Session refresh failed:', refreshErr);
+      }
+    }
+
+    // Log errors that aren't retryable
     if (error.response) {
-      console.error('[API] Error status:', error.response.status);
-      console.error('[API] Error data:', error.response.data);
+      console.error('[API] Error:', error.response.status, error.config?.url, error.response.data);
     } else if (error.request) {
       console.error('[API] No response received:', error.request);
     }

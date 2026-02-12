@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from services.supabase import get_supabase_client
 from models.schemas import LoginRequest, LoginResponse, SignupRequest, UserResponse, UserProfileResponse
+from supabase import create_client
+import os
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,14 +11,29 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer()
 
+
+def _create_auth_client():
+    """
+    Create a throwaway Supabase client for login/signup/logout.
+
+    These operations call sign_in_with_password / sign_up / sign_out which
+    mutate the client's internal auth session.  Using the shared singleton
+    would pollute its state and can cause get_user(jwt) to misbehave for
+    concurrent requests from other users.
+    """
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    return create_client(url, key)
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(credentials: LoginRequest):
     """
     Authenticate user and return access token
     """
-    supabase = get_supabase_client()
+    auth_client = _create_auth_client()
     try:
-        response = supabase.auth.sign_in_with_password({
+        response = auth_client.auth.sign_in_with_password({
             "email": credentials.email,
             "password": credentials.password
         })
@@ -35,9 +52,9 @@ async def signup(user_data: SignupRequest):
     """
     Register a new user
     """
-    supabase = get_supabase_client()
+    auth_client = _create_auth_client()
     try:
-        response = supabase.auth.sign_up({
+        response = auth_client.auth.sign_up({
             "email": user_data.email,
             "password": user_data.password
         })
@@ -51,17 +68,10 @@ async def signup(user_data: SignupRequest):
 @router.post("/logout")
 async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
-    Logout user and invalidate token
+    Logout user — the frontend Supabase client handles session cleanup.
+    We just acknowledge the request; no server-side session to clear.
     """
-    supabase = get_supabase_client()
-    try:
-        supabase.auth.sign_out()
-        return {"message": "Successfully logged out"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -84,17 +94,14 @@ async def get_current_user_profile(credentials: HTTPAuthorizationCredentials = D
     Get current authenticated user's profile with full name and role
     """
     supabase = get_supabase_client()
-    try:
-        logger.info("[Profile] Validating user token...")
-        token = credentials.credentials
-        logger.info(f"[Profile] Token prefix: {token[:20]}...")
+    token = credentials.credentials
 
-        # Get the authenticated user
+    # --- Step 1: Validate JWT ---
+    try:
+        logger.info(f"[Profile] Validating token (prefix: {token[:20]}...)")
         user = supabase.auth.get_user(token)
-        logger.info(f"[Profile] User object: {user}")
 
         if not user or not user.user:
-            logger.error("[Profile] No user found in token validation")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication token"
@@ -102,26 +109,33 @@ async def get_current_user_profile(credentials: HTTPAuthorizationCredentials = D
 
         auth_user_id = user.user.id
         logger.info(f"[Profile] Authenticated user ID: {auth_user_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Profile] Token validation failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}"
+        )
 
-        # Fetch the user profile from user_profiles table
-        logger.info(f"[Profile] Fetching profile for user ID: {auth_user_id}")
+    # --- Step 2: Fetch profile (DB error ≠ auth error) ---
+    try:
         profile = supabase.table("user_profiles").select("*").eq("id", auth_user_id).execute()
-        logger.info(f"[Profile] Profile query result: {profile.data}")
 
         if not profile.data:
-            logger.error(f"[Profile] No user profile found for user ID: {auth_user_id}")
+            logger.error(f"[Profile] No profile for user: {auth_user_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"User profile not found for user ID: {auth_user_id}"
             )
 
-        logger.info(f"[Profile] Successfully retrieved profile: {profile.data[0]}")
+        logger.info(f"[Profile] Profile retrieved for: {auth_user_id}")
         return UserProfileResponse(**profile.data[0])
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[Profile] Error getting user profile: {str(e)}", exc_info=True)
+        logger.error(f"[Profile] Profile lookup failed: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile lookup failed: {str(e)}"
         )

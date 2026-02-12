@@ -36,10 +36,16 @@ def get_supabase_client() -> Client:
 
 async def get_current_user_id(token: str) -> str:
     """
-    Extract user ID from authentication token and return user profile ID
+    Extract user ID from authentication token and return user profile ID.
+
+    Raises:
+        401 — if the JWT token is invalid or expired
+        404 — if no user_profiles row exists for the authenticated user
+        500 — if the profile database query itself fails
     """
     supabase = get_supabase_client()
 
+    # --- Step 1: Validate the JWT with Supabase Auth ---
     try:
         logger.info("Validating user token")
         user = supabase.auth.get_user(token)
@@ -54,7 +60,17 @@ async def get_current_user_id(token: str) -> str:
         auth_user_id = user.user.id
         logger.info(f"Token validated for auth user: {auth_user_id}")
 
-        # Look up the user profile to get the profile ID
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Token validation failed: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}"
+        )
+
+    # --- Step 2: Look up the user profile (separate from auth) ---
+    try:
         profile = supabase.table("user_profiles").select("*").eq("id", auth_user_id).execute()
 
         if not profile.data:
@@ -69,13 +85,12 @@ async def get_current_user_id(token: str) -> str:
         return profile_id
 
     except HTTPException:
-        # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        logger.error(f"Authentication error: {str(e)}", exc_info=True)
+        logger.error(f"Profile lookup failed for user {auth_user_id}: {str(e)}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Profile lookup failed: {str(e)}"
         )
 
 async def get_user_profile(user_id: str):

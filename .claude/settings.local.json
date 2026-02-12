@@ -30,7 +30,10 @@
       "Bash(cmd /c \"taskkill /F /PID 4408 & taskkill /F /PID 20396\")",
       "Bash(grep:*)",
       "Bash(wmic process:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch:*)",
+      "Bash(git stash:*)",
+      "Bash(pip show:*)"
     ]
   }
 }

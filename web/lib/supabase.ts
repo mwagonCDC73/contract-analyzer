@@ -42,3 +42,31 @@ export async function getSession() {
   if (error) throw error;
   return session;
 }
+
+/**
+ * Get a valid (non-expired) access token, refreshing the session if needed.
+ * Use this instead of getSession() when sending tokens to the backend.
+ */
+export async function getValidAccessToken(): Promise<string | null> {
+  const { data: { session }, error } = await supabase.auth.getSession();
+
+  if (error || !session) {
+    return null;
+  }
+
+  // If token expires within 60 seconds, refresh it proactively
+  const expiresAt = session.expires_at; // Unix timestamp in seconds
+  if (expiresAt) {
+    const now = Math.floor(Date.now() / 1000);
+    if (expiresAt - now < 60) {
+      const { data: { session: refreshed }, error: refreshError } =
+        await supabase.auth.refreshSession();
+      if (refreshError || !refreshed) {
+        return null;
+      }
+      return refreshed.access_token;
+    }
+  }
+
+  return session.access_token;
+}
