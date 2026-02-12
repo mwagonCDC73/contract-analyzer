@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from '@/lib/supabase';
+import { APP_VERSION } from '@/lib/constants';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -100,6 +101,7 @@ export default function LoginPage() {
             </button>
           </div>
         </form>
+        <p className="mt-8 text-center text-xs text-gray-400">{APP_VERSION}</p>
       </div>
     </div>
   );

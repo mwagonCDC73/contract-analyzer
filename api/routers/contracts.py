@@ -14,6 +14,7 @@ security = HTTPBearer()
 logger = logging.getLogger(__name__)
 
 @router.get("/debug/test-query")
+@router.get("/debug/test-query/")
 async def debug_test_query(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
@@ -229,6 +230,7 @@ async def list_contracts(
         )
 
 @router.get("/{contract_id}/pdf")
+@router.get("/{contract_id}/pdf/")
 async def get_contract_pdf(
     contract_id: str,
     token: Optional[str] = Query(None),
@@ -342,6 +344,7 @@ async def get_contract(
         )
 
 @router.put("/{contract_id}", response_model=ContractResponse)
+@router.put("/{contract_id}/", response_model=ContractResponse)
 async def update_contract(
     contract_id: str,
     contract_update: ContractUpdate,
@@ -439,6 +442,7 @@ async def update_executive_notes(
         )
 
 @router.delete("/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{contract_id}/", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contract(
     contract_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security)

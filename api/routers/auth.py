@@ -27,6 +27,7 @@ def _create_auth_client():
 
 
 @router.post("/login", response_model=LoginResponse)
+@router.post("/login/", response_model=LoginResponse)
 async def login(credentials: LoginRequest):
     """
     Authenticate user and return access token
@@ -48,6 +49,7 @@ async def login(credentials: LoginRequest):
         )
 
 @router.post("/signup", response_model=UserResponse)
+@router.post("/signup/", response_model=UserResponse)
 async def signup(user_data: SignupRequest):
     """
     Register a new user
@@ -66,6 +68,7 @@ async def signup(user_data: SignupRequest):
         )
 
 @router.post("/logout")
+@router.post("/logout/")
 async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Logout user — the frontend Supabase client handles session cleanup.
@@ -74,6 +77,7 @@ async def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
     return {"message": "Successfully logged out"}
 
 @router.get("/me", response_model=UserResponse)
+@router.get("/me/", response_model=UserResponse)
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Get current authenticated user
@@ -89,6 +93,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         )
 
 @router.get("/profile", response_model=UserProfileResponse)
+@router.get("/profile/", response_model=UserProfileResponse)
 async def get_current_user_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Get current authenticated user's profile with full name and role

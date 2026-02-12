@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { signOut, getSession } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import { authAPI } from '@/lib/api';
+import { APP_VERSION } from '@/lib/constants';
 import type { UserProfile } from '@/types';
 
 export default function Header() {
@@ -55,6 +56,7 @@ export default function Header() {
             <Link href="/dashboard" className="text-xl font-bold text-gray-900">
               Contract Analyzer
             </Link>
+            <span className="text-xs text-gray-400">{APP_VERSION}</span>
             <nav className="flex space-x-4">
               <Link
                 href="/dashboard"
