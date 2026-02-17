@@ -18,6 +18,10 @@ import logging
 from services.supabase import get_supabase_client, get_current_user_id, get_user_profile
 from models.schemas import (
     AdminUserResponse, CreateUserRequest, UpdateUserRequest, DeleteUserRequest,
+    ModuleResponse, UserWithModulesResponse,
+    GrantModuleAccessRequest, RevokeModuleAccessRequest,
+    BulkGrantModuleAccessRequest, BulkRevokeModuleAccessRequest,
+    UpdateModuleRequest,
 )
 
 router = APIRouter()
@@ -729,6 +733,19 @@ async def create_user(
         supabase.table("user_profiles").insert(profile_data).execute()
         logger.info(f"[ADMIN] Profile created for {new_user_id}")
 
+        # Auto-grant contracts module to the new user
+        try:
+            mod_resp = supabase.table("modules").select("id").eq("key", "contracts").execute()
+            if mod_resp.data:
+                supabase.table("user_module_access").insert({
+                    "user_id": new_user_id,
+                    "module_id": mod_resp.data[0]["id"],
+                    "granted_by": user_id,
+                }).execute()
+                logger.info(f"[ADMIN] Auto-granted contracts module to {new_user_id}")
+        except Exception as mod_err:
+            logger.warning(f"[ADMIN] Could not auto-grant contracts module (migration may not be run): {mod_err}")
+
         # Send password reset email so user can set their own password
         try:
             supabase.auth.reset_password_email(request.email)
@@ -1021,4 +1038,292 @@ async def delete_user(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete user: {str(e)}"
+        )
+
+
+# ─── Module Management Endpoints (admin-only) ─────────────────────────────────
+
+
+@router.get("/modules", response_model=List[ModuleResponse])
+@router.get("/modules/", response_model=List[ModuleResponse])
+async def list_modules(user_id: str = Depends(require_strict_admin_role)):
+    """List all modules (including disabled ones)."""
+    supabase = get_supabase_client()
+    try:
+        resp = supabase.table("modules") \
+            .select("*") \
+            .order("display_order") \
+            .execute()
+        return resp.data or []
+    except Exception as e:
+        logger.error(f"[ADMIN] Error listing modules: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list modules: {str(e)}"
+        )
+
+
+@router.put("/modules/{module_key}")
+@router.put("/modules/{module_key}/")
+async def update_module(
+    module_key: str,
+    request: UpdateModuleRequest,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """Update a module (e.g. enable/disable)."""
+    supabase = get_supabase_client()
+    try:
+        update_data = {}
+        if request.enabled is not None:
+            update_data["enabled"] = request.enabled
+
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No fields to update"
+            )
+
+        resp = supabase.table("modules") \
+            .update(update_data) \
+            .eq("key", module_key) \
+            .execute()
+
+        if not resp.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Module '{module_key}' not found"
+            )
+
+        logger.info(f"[ADMIN] Updated module {module_key}: {update_data}")
+        return resp.data[0]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error updating module: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update module: {str(e)}"
+        )
+
+
+@router.get("/modules/{module_key}/users", response_model=List[UserWithModulesResponse])
+@router.get("/modules/{module_key}/users/", response_model=List[UserWithModulesResponse])
+async def list_module_users(
+    module_key: str,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """List all users with their access status for a specific module."""
+    supabase = get_supabase_client()
+    try:
+        # Get module
+        mod_resp = supabase.table("modules").select("id, key").eq("key", module_key).execute()
+        if not mod_resp.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Module '{module_key}' not found"
+            )
+        module_id = mod_resp.data[0]["id"]
+
+        # Get all user profiles
+        profiles_resp = supabase.table("user_profiles") \
+            .select("id, full_name, email, role, active") \
+            .order("full_name") \
+            .execute()
+        profiles = profiles_resp.data or []
+
+        # Get access records for this module
+        access_resp = supabase.table("user_module_access") \
+            .select("user_id") \
+            .eq("module_id", module_id) \
+            .execute()
+        granted_user_ids = {a["user_id"] for a in (access_resp.data or [])}
+
+        # Get auth users for email fallback
+        auth_map = {}
+        try:
+            auth_resp = supabase.auth.admin.list_users()
+            auth_users = auth_resp if isinstance(auth_resp, list) else getattr(auth_resp, 'users', [])
+            for au in auth_users:
+                uid = au.id if hasattr(au, 'id') else au.get('id')
+                email = au.email if hasattr(au, 'email') else au.get('email', '')
+                auth_map[uid] = email
+        except Exception as e:
+            logger.warning(f"[ADMIN] Could not fetch auth users for emails: {e}")
+
+        # Build response
+        result = []
+        for p in profiles:
+            user_modules = [module_key] if p["id"] in granted_user_ids else []
+            result.append({
+                "id": p["id"],
+                "full_name": p.get("full_name", "Unknown"),
+                "email": auth_map.get(p["id"]) or p.get("email") or "",
+                "role": p.get("role", "project_manager"),
+                "active": p.get("active", True),
+                "modules": user_modules,
+            })
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error listing module users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list module users: {str(e)}"
+        )
+
+
+@router.post("/modules/{module_key}/grant")
+@router.post("/modules/{module_key}/grant/")
+async def grant_module_access(
+    module_key: str,
+    request: GrantModuleAccessRequest,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """Grant a single user access to a module."""
+    supabase = get_supabase_client()
+    try:
+        mod_resp = supabase.table("modules").select("id").eq("key", module_key).execute()
+        if not mod_resp.data:
+            raise HTTPException(status_code=404, detail=f"Module '{module_key}' not found")
+
+        supabase.table("user_module_access").upsert({
+            "user_id": request.user_id,
+            "module_id": mod_resp.data[0]["id"],
+            "granted_by": user_id,
+        }, on_conflict="user_id,module_id").execute()
+
+        logger.info(f"[ADMIN] Granted {module_key} to user {request.user_id}")
+        return {"message": "Access granted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error granting module access: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to grant access: {str(e)}"
+        )
+
+
+@router.post("/modules/{module_key}/revoke")
+@router.post("/modules/{module_key}/revoke/")
+async def revoke_module_access(
+    module_key: str,
+    request: RevokeModuleAccessRequest,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """Revoke a single user's access to a module."""
+    supabase = get_supabase_client()
+    try:
+        mod_resp = supabase.table("modules").select("id").eq("key", module_key).execute()
+        if not mod_resp.data:
+            raise HTTPException(status_code=404, detail=f"Module '{module_key}' not found")
+
+        supabase.table("user_module_access") \
+            .delete() \
+            .eq("user_id", request.user_id) \
+            .eq("module_id", mod_resp.data[0]["id"]) \
+            .execute()
+
+        logger.info(f"[ADMIN] Revoked {module_key} from user {request.user_id}")
+        return {"message": "Access revoked"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error revoking module access: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke access: {str(e)}"
+        )
+
+
+@router.post("/modules/{module_key}/grant-all")
+@router.post("/modules/{module_key}/grant-all/")
+async def grant_module_to_all(
+    module_key: str,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """Grant all active users access to a module."""
+    supabase = get_supabase_client()
+    try:
+        mod_resp = supabase.table("modules").select("id").eq("key", module_key).execute()
+        if not mod_resp.data:
+            raise HTTPException(status_code=404, detail=f"Module '{module_key}' not found")
+        module_id = mod_resp.data[0]["id"]
+
+        profiles_resp = supabase.table("user_profiles") \
+            .select("id") \
+            .eq("active", True) \
+            .execute()
+
+        granted = 0
+        for p in (profiles_resp.data or []):
+            try:
+                supabase.table("user_module_access").upsert({
+                    "user_id": p["id"],
+                    "module_id": module_id,
+                    "granted_by": user_id,
+                }, on_conflict="user_id,module_id").execute()
+                granted += 1
+            except Exception:
+                pass
+
+        logger.info(f"[ADMIN] Granted {module_key} to {granted} users")
+        return {"message": f"Access granted to {granted} users", "granted": granted}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error granting module to all: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to grant access to all: {str(e)}"
+        )
+
+
+@router.post("/modules/{module_key}/revoke-all")
+@router.post("/modules/{module_key}/revoke-all/")
+async def revoke_module_from_all(
+    module_key: str,
+    user_id: str = Depends(require_strict_admin_role),
+):
+    """Revoke all users' access to a module."""
+    supabase = get_supabase_client()
+    try:
+        mod_resp = supabase.table("modules").select("id").eq("key", module_key).execute()
+        if not mod_resp.data:
+            raise HTTPException(status_code=404, detail=f"Module '{module_key}' not found")
+        module_id = mod_resp.data[0]["id"]
+
+        # Get all access records for this module to count them
+        access_resp = supabase.table("user_module_access") \
+            .select("id") \
+            .eq("module_id", module_id) \
+            .execute()
+        count = len(access_resp.data) if access_resp.data else 0
+
+        if count > 0:
+            access_ids = [a["id"] for a in access_resp.data]
+            for i in range(0, len(access_ids), 50):
+                batch = access_ids[i:i + 50]
+                supabase.table("user_module_access") \
+                    .delete() \
+                    .in_("id", batch) \
+                    .execute()
+
+        logger.info(f"[ADMIN] Revoked {module_key} from {count} users")
+        return {"message": f"Access revoked from {count} users", "revoked": count}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[ADMIN] Error revoking module from all: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to revoke access from all: {str(e)}"
         )

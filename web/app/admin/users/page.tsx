@@ -313,6 +313,16 @@ export default function AdminUsersPage() {
             >
               Cost Tracking
             </Link>
+            <Link
+              href="/admin/modules"
+              className={`pb-3 px-1 text-sm font-medium border-b-2 ${
+                pathname === '/admin/modules'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Module Access
+            </Link>
           </nav>
         </div>
 

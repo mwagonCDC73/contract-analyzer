@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Contract Analyzer",
-  description: "AI-powered contract analysis and submission platform",
+  title: "Contract Analyzer | California Drywall",
+  description: "California Drywall's AI Powered Contract Analyzer",
 };
 
 export default function RootLayout({

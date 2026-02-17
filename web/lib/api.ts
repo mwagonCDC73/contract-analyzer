@@ -14,6 +14,8 @@ import type {
   CostSummary,
   CostLog,
   StateOption,
+  Module,
+  UserWithModules,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -106,6 +108,11 @@ export const authAPI = {
 
   getCurrentUserProfile: async () => {
     const { data } = await apiClient.get('/api/auth/profile');
+    return data;
+  },
+
+  getMyModules: async (): Promise<Module[]> => {
+    const { data } = await apiClient.get('/api/auth/my-modules');
     return data;
   },
 };
@@ -346,6 +353,42 @@ export const adminAPI = {
 
   getCostLogs: async (limit: number = 100): Promise<CostLog[]> => {
     const { data } = await apiClient.get('/api/admin/costs/logs', { params: { limit } });
+    return data;
+  },
+
+  // Module management
+  listModules: async (): Promise<Module[]> => {
+    const { data } = await apiClient.get('/api/admin/modules');
+    return data;
+  },
+
+  updateModule: async (moduleKey: string, updates: { enabled?: boolean }): Promise<Module> => {
+    const { data } = await apiClient.put(`/api/admin/modules/${moduleKey}`, updates);
+    return data;
+  },
+
+  listModuleUsers: async (moduleKey: string): Promise<UserWithModules[]> => {
+    const { data } = await apiClient.get(`/api/admin/modules/${moduleKey}/users`);
+    return data;
+  },
+
+  grantModuleAccess: async (moduleKey: string, userId: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.post(`/api/admin/modules/${moduleKey}/grant`, { user_id: userId });
+    return data;
+  },
+
+  revokeModuleAccess: async (moduleKey: string, userId: string): Promise<{ message: string }> => {
+    const { data } = await apiClient.post(`/api/admin/modules/${moduleKey}/revoke`, { user_id: userId });
+    return data;
+  },
+
+  grantModuleToAll: async (moduleKey: string): Promise<{ message: string; granted: number }> => {
+    const { data } = await apiClient.post(`/api/admin/modules/${moduleKey}/grant-all`);
+    return data;
+  },
+
+  revokeModuleFromAll: async (moduleKey: string): Promise<{ message: string; revoked: number }> => {
+    const { data } = await apiClient.post(`/api/admin/modules/${moduleKey}/revoke-all`);
     return data;
   },
 };

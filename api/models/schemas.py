@@ -159,3 +159,44 @@ class UpdateUserRequest(BaseModel):
 
 class DeleteUserRequest(BaseModel):
     confirmation_email: str
+
+
+# Module System Schemas
+class ModuleResponse(BaseModel):
+    id: str
+    key: str
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    enabled: bool
+    display_order: int
+    created_at: Optional[str] = None
+
+
+class UserWithModulesResponse(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    role: str
+    active: bool = True
+    modules: List[str] = []  # list of module keys
+
+
+class GrantModuleAccessRequest(BaseModel):
+    user_id: str
+
+
+class RevokeModuleAccessRequest(BaseModel):
+    user_id: str
+
+
+class BulkGrantModuleAccessRequest(BaseModel):
+    user_ids: List[str]
+
+
+class BulkRevokeModuleAccessRequest(BaseModel):
+    user_ids: List[str]
+
+
+class UpdateModuleRequest(BaseModel):
+    enabled: Optional[bool] = None

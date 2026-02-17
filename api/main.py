@@ -86,6 +86,30 @@ async def check_schema():
             )
         else:
             logger.info("Database schema check passed — all required columns present.")
+
+        # Check for modules tables (003_add_modules.sql migration)
+        missing_tables = []
+        for table in ["modules", "user_module_access"]:
+            try:
+                supabase.table(table).select("id").limit(0).execute()
+            except Exception as e:
+                if "42P01" in str(e):
+                    missing_tables.append(table)
+
+        if missing_tables:
+            logger.warning(
+                "\n"
+                "================================================================\n"
+                "  MODULE SYSTEM MIGRATION REQUIRED\n"
+                "  Missing tables: %s\n"
+                "  Run api/migrations/003_add_modules.sql in Supabase SQL Editor\n"
+                "  The app will work without it, but module features will be\n"
+                "  unavailable until the migration is applied.\n"
+                "================================================================",
+                ", ".join(missing_tables),
+            )
+        else:
+            logger.info("Module system tables present.")
     except Exception as e:
         logger.error(f"Schema check failed: {e}")
 

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import List
 from services.supabase import get_supabase_client
-from models.schemas import LoginRequest, LoginResponse, SignupRequest, UserResponse, UserProfileResponse
+from models.schemas import LoginRequest, LoginResponse, SignupRequest, UserResponse, UserProfileResponse, ModuleResponse
 from supabase import create_client
 import os
 import logging
@@ -143,4 +144,93 @@ async def get_current_user_profile(credentials: HTTPAuthorizationCredentials = D
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Profile lookup failed: {str(e)}"
+        )
+
+
+@router.get("/my-modules", response_model=List[ModuleResponse])
+@router.get("/my-modules/", response_model=List[ModuleResponse])
+async def get_my_modules(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Get the list of modules the current user has access to.
+    Admins get all enabled modules. Others get modules via user_module_access.
+    """
+    supabase = get_supabase_client()
+    token = credentials.credentials
+
+    # Validate JWT
+    try:
+        user = supabase.auth.get_user(token)
+        if not user or not user.user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token"
+            )
+        auth_user_id = user.user.id
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}"
+        )
+
+    # Get user profile for role check
+    try:
+        profile_resp = supabase.table("user_profiles").select("role").eq("id", auth_user_id).execute()
+        if not profile_resp.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User profile not found"
+            )
+        role = profile_resp.data[0].get("role")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[MyModules] Profile lookup failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to look up user profile"
+        )
+
+    # Fetch modules
+    try:
+        if role == "admin":
+            # Admins see all enabled modules
+            modules_resp = supabase.table("modules") \
+                .select("*") \
+                .eq("enabled", True) \
+                .order("display_order") \
+                .execute()
+        else:
+            # Non-admins: join through user_module_access
+            # First get user's granted module IDs
+            access_resp = supabase.table("user_module_access") \
+                .select("module_id") \
+                .eq("user_id", auth_user_id) \
+                .execute()
+
+            if not access_resp.data:
+                return []
+
+            module_ids = [a["module_id"] for a in access_resp.data]
+            modules_resp = supabase.table("modules") \
+                .select("*") \
+                .eq("enabled", True) \
+                .in_("id", module_ids) \
+                .order("display_order") \
+                .execute()
+
+        return modules_resp.data or []
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # If modules table doesn't exist yet, return empty list gracefully
+        if "42P01" in str(e):
+            logger.warning("[MyModules] modules table not found — migration may not have been run")
+            return []
+        logger.error(f"[MyModules] Error fetching modules: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch modules: {str(e)}"
         )

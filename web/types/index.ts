@@ -153,6 +153,37 @@ export interface CostLog {
   project_name?: string;
 }
 
+// Module system types
+export interface Module {
+  id: string;
+  key: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  enabled: boolean;
+  display_order: number;
+  created_at?: string;
+}
+
+export interface UserModuleAccess {
+  id: string;
+  user_id: string;
+  module_id: string;
+  module_key?: string;
+  module_name?: string;
+  granted_by?: string;
+  granted_at?: string;
+}
+
+export interface UserWithModules {
+  id: string;
+  full_name: string;
+  email: string;
+  role: 'project_manager' | 'executive' | 'admin';
+  active: boolean;
+  modules: string[];
+}
+
 // Red Flag types (from existing database)
 export interface RedFlag {
   id: string;

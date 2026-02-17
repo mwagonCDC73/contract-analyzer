@@ -6,6 +6,7 @@ import { signOut, getSession } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import { authAPI } from '@/lib/api';
 import { APP_VERSION } from '@/lib/constants';
+import ModuleSwitcher from '@/components/ModuleSwitcher';
 import type { UserProfile } from '@/types';
 
 export default function Header() {
@@ -57,6 +58,7 @@ export default function Header() {
               Contract Analyzer
             </Link>
             <span className="text-xs text-gray-400">{APP_VERSION}</span>
+            <ModuleSwitcher />
             <nav className="flex space-x-4">
               <Link
                 href="/dashboard"
